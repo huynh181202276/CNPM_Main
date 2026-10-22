@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Thiệp Cưới Online - Rút Gọn Link Siêu Ngắn</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Google Fonts: Great Vibes & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- LZ-String Compression Library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.4.4/lz-string.min.js"></script>
+
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+    .font-serif-wedding {
+      font-family: 'Great Vibes', cursive;
+    }
+    /* Custom scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f1f1;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #f43f5e;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 antialiased min-h-screen">
+
+  <div id="app" class="max-w-4xl mx-auto min-h-screen bg-white shadow-2xl relative flex flex-col">
+    <!-- Dynamic Content populated via JS -->
+  </div>
+
+  <!-- Toast Notification System -->
+  <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2"></div>
+
+  <!-- Fullscreen Lightbox Modal -->
+  <div id="lightbox" class="fixed inset-0 bg-black/90 z-50 hidden flex flex-col justify-between p-4 backdrop-blur-sm transition-opacity duration-300">
+    <div class="flex justify-between items-center text-white px-2">
+      <span id="lightbox-counter" class="text-sm font-medium tracking-wide">1 / 10</span>
+      <button onclick="closeLightbox()" class="text-3xl hover:text-rose-400 transition-colors p-2">&times;</button>
+    </div>
+    <div class="relative flex-1 flex items-center justify-center my-auto overflow-hidden">
+      <img id="lightbox-img" src="" alt="Zoomed image" class="max-h-[80vh] max-w-full object-contain rounded-lg shadow-2xl transition-all duration-300">
+      <button onclick="prevLightboxImage()" class="absolute left-2 bg-black/50 text-white hover:bg-rose-600 rounded-full w-10 h-10 flex items-center justify-center transition-all">
+        <i class="fas fa-chevron-left"></i>
+      </button>
+      <button onclick="nextLightboxImage()" class="absolute right-2 bg-black/50 text-white hover:bg-rose-600 rounded-full w-10 h-10 flex items-center justify-center transition-all">
+        <i class="fas fa-chevron-right"></i>
+      </button>
+    </div>
+    <div id="lightbox-caption" class="text-center text-slate-300 text-sm py-2 italic font-light"></div>
+  </div>
+
+  <script>
+    // State Data Structure
+    let weddingData = {
+      groomName: 'Nguyễn Văn Anh',
+      groomFamily: 'Ông: Nguyễn Văn B & Bà: Trần Thị C',
+      brideName: 'Lê Thị Mai',
+      brideFamily: 'Ông: Lê Văn D & Bà: Phạm Thị E',
+      weddingDate: '2026-11-20',
+      weddingTime: '11:00',
+      venueName: 'Trung Tâm Tiệc Cưới Luxury Palace',
+      venueAddress: '123 Đường Nguyễn Huệ, Quận 1, TP. Hồ Chí Minh',
+      mapUrl: 'https://maps.google.com',
+      bankGroomName: 'Nguyễn Văn Anh',
+      bankGroomNumber: '1234567890',
+      bankGroomBank: 'Vietcombank',
+      bankBrideName: 'Lê Thị Mai',
+      bankBrideNumber: '0987654321',
+      bankBrideBank: 'Techcombank',
+      photos: [
+        'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=800&q=80',
+        'https://images.unsplash.com/photo-1511285560929-80b456fea0bc?auto=format&fit=crop&w=800&q=80',
+        'https://images.unsplash.com/photo-1583939003579-730e3918a45a?auto=format&fit=crop&w=800&q=80',
+        'https://images.unsplash.com/photo-1518105779142-d975f22f1b0a?auto=format&fit=crop&w=800&q=80',
+        'https://images.unsplash.com/photo-1520854221256-17451cc331bf?auto=format&fit=crop&w=800&q=80',
+        'https://images.unsplash.com/photo-1465495976277-4387d4b0b4c6?auto=format&fit=crop&w=800&q=80',
+        'https://images.unsplash.com/photo-1522673607200-164d1b6ce486?auto=format&fit=crop&w=800&q=80',
+        'https://images.unsplash.com/photo-1529636798458-92182e662485?auto=format&fit=crop&w=800&q=80',
+        'https://images.unsplash.com/photo-1532712938310-34cb3982ef74?auto=format&fit=crop&w=800&q=80',
+        'https://images.unsplash.com/photo-1523438885200-e635ba2c371e?auto=format&fit=crop&w=800&q=80'
+      ],
+      wishes: []
+    };
+
+    let activeTab = 'info';
+    let currentLightboxIdx = 0;
+    let isViewMode = false;
+    let shortUrlResult = '';
+    let isGeneratingShortUrl = false;
+
+    // Toast Utility
+    function showToast(msg, type = 'success') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      const bgColor = type === 'success' ? 'bg-emerald-600' : type === 'error' ? 'bg-rose-600' : 'bg-slate-800';
+      toast.className = `${bgColor} text-white px-4 py-3 rounded-lg shadow-lg text-sm flex items-center gap-2 transform transition-all duration-300 translate-y-2 opacity-0`;
+      toast.innerHTML = `<i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i> ${msg}`;
+      container.appendChild(toast);
+      
+      setTimeout(() => {
+        toast.classList.remove('translate-y-2', 'opacity-0');
+      }, 50);
+
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-2');
+        setTimeout(() => toast.remove(), 300);
+      }, 3500);
+    }
+
+    // App Initialization
+    window.onload = function() {
+      parseUrlParams();
+      renderApp();
+      if (isViewMode) {
+        startCountdown();
+      }
+    };
+
+    // Compress & Pack Data into URL Hash
+    function generateCompactPayload() {
+      // Create minimal object to compress size drastically
+      const minData = {
+        gn: weddingData.groomName,
+        gf: weddingData.groomFamily,
+        bn: weddingData.brideName,
+        bf: weddingData.brideFamily,
+        d: weddingData.weddingDate,
+        t: weddingData.weddingTime,
+        vn: weddingData.venueName,
+        va: weddingData.venueAddress,
+        mu: weddingData.mapUrl,
+        bgn: weddingData.bankGroomName,
+        bgb: weddingData.bankGroomBank,
+        bgnm: weddingData.bankGroomNumber,
+        bbn: weddingData.bankBrideName,
+        bbb: weddingData.bankBrideBank,
+        bbnm: weddingData.bankBrideNumber,
+        p: weddingData.photos.slice(0, 10)
+      };
+      
+      const jsonStr = JSON.stringify(minData);
+      return LZString.compressToEncodedURIComponent(jsonStr);
+    }
+
+    // Unpack Data from URL
+    function parseUrlParams() {
+      const hash = window.location.hash.substring(1);
+      const urlParams = new URLSearchParams(window.location.search);
+      const compressedData = hash || urlParams.get('d');
+
+      if (compressedData) {
+        try {
+          const decompressed = LZString.decompressFromEncodedURIComponent(compressedData);
+          if (decompressed) {
+            const minData = JSON.parse(decompressed);
+            weddingData.groomName = minData.gn || weddingData.groomName;
+            weddingData.groomFamily = minData.gf || weddingData.groomFamily;
+            weddingData.brideName = minData.bn || weddingData.brideName;
+            weddingData.brideFamily = minData.bf || weddingData.brideFamily;
+            weddingData.weddingDate = minData.d || weddingData.weddingDate;
+            weddingData.weddingTime = minData.t || weddingData.weddingTime;
+            weddingData.venueName = minData.vn || weddingData.venueName;
+            weddingData.venueAddress = minData.va || weddingData.venueAddress;
+            weddingData.mapUrl = minData.mu || weddingData.mapUrl;
+            weddingData.bankGroomName = minData.bgn || weddingData.bankGroomName;
+            weddingData.bankGroomBank = minData.bgb || weddingData.bankGroomBank;
+            weddingData.bankGroomNumber = minData.bgnm || weddingData.bankGroomNumber;
+            weddingData.bankBrideName = minData.bbn || weddingData.bankBrideName;
+            weddingData.bankBrideBank = minData.bbb || weddingData.bankBrideBank;
+            weddingData.bankBrideNumber = minData.bbnm || weddingData.bankBrideNumber;
+            if (Array.isArray(minData.p) && minData.p.length > 0) {
+              weddingData.photos = minData.p;
+            }
+            isViewMode = true;
+          }
+        } catch (e) {
+          console.error("Failed to parse invitation hash payload", e);
+        }
+      }
+    }
+
+    // Auto-Compress Image Utility (Smart Compression)
+    function compressImageFile(file, maxWidth = 600, quality = 0.5) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+          const img = new Image();
+          img.src = event.target.result;
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+
+            if (width > height) {
+              if (width > maxWidth) {
+                height = Math.round((height * maxWidth) / width);
+                width = maxWidth;
+              }
+            } else {
+              if (height > maxWidth) {
+                width = Math.round((width * maxWidth) / height);
+                height = maxWidth;
+              }
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+
+            // Compress to standard JPEG format
+            const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
+            resolve(compressedBase64);
+          };
+          img.onerror = (err) => reject(err);
+        };
+        reader.onerror = (err) => reject(err);
+      });
+    }
+
+    // Handle Image Upload
+    async function handlePhotoUpload(event, index) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      if (file.size > 10 * 1024 * 1024) {
+        showToast('Kích thước ảnh quá lớn (vui lòng chọn ảnh < 10MB)', 'error');
+        return;
+      }
+
+      showToast('Đang nén tối ưu dung lượng ảnh...', 'info');
+
+      try {
+        const compressedBase64 = await compressImageFile(file, 600, 0.45);
+        weddingData.photos[index] = compressedBase64;
+        showToast(`Đã tải & tối ưu ảnh số ${index + 1} thành công!`);
+        renderApp();
+      } catch (err) {
+        showToast('Lỗi xử lý nén ảnh!', 'error');
+      }
+    }
+
+    function updatePhotoUrl(index, url) {
+      weddingData.photos[index] = url.trim();
+    }
+
+    // API Call for TinyURL Auto Shortening
+    async function createShortUrl() {
+      isGeneratingShortUrl = true;
+      renderApp();
+
+      const compactHash = generateCompactPayload();
+      const fullUrl = `${window.location.origin}${window.location.pathname}#${compactHash}`;
+
+      try {
+        // Fetch tinyurl API
+        const response = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(fullUrl)}`);
+        
+        if (response.ok) {
+          const shortUrl = await response.text();
+          if (shortUrl && shortUrl.startsWith('http')) {
+            shortUrlResult = shortUrl;
+            showToast('Tạo link rút gọn siêu ngắn thành công!');
+          } else {
+            throw new Error('Cú pháp link không hợp lệ');
+          }
+        } else {
+          throw new Error('Không thể kết nối dịch vụ TinyURL');
+        }
+      } catch (err) {
+        console.warn('TinyURL API Error/CORS Fallback:', err);
+        // Fallback to local full URL if API fails
+        shortUrlResult = fullUrl;
+        showToast('Không thể kết nối TinyURL. Đã dùng link trực tiếp.', 'info');
+      } finally {
+        isGeneratingShortUrl = false;
+        renderApp();
+      }
+    }
+
+    function copyToClipboard(text) {
+      const dummy = document.createElement('textarea');
+      document.body.appendChild(dummy);
+      dummy.value = text;
+      dummy.select();
+      document.execCommand('copy');
+      document.body.removeChild(dummy);
+      showToast('Đã sao chép link thành công!');
+    }
+
+    // Countdown Timer logic
+    let countdownInterval;
+    function startCountdown() {
+      if (countdownInterval) clearInterval(countdownInterval);
+
+      const updateTimer = () => {
+        const targetDate = new Date(`${weddingData.weddingDate}T${weddingData.weddingTime}:00`);
+        const now = new Date();
+        const diff = targetDate - now;
+
+        const dEl = document.getElementById('cd-days');
+        const hEl = document.getElementById('cd-hours');
+        const mEl = document.getElementById('cd-mins');
+        const sEl = document.getElementById('cd-secs');
+
+        if (!dEl) return;
+
+        if (diff <= 0) {
+          dEl.innerText = '00';
+          hEl.innerText = '00';
+          mEl.innerText = '00';
+          sEl.innerText = '00';
+          return;
+        }
+
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+        const minutes = Math.floor((diff / 1000 / 60) % 60);
+        const seconds = Math.floor((diff / 1000) % 60);
+
+        dEl.innerText = String(days).padStart(2, '0');
+        hEl.innerText = String(hours).padStart(2, '0');
+        mEl.innerText = String(minutes).padStart(2, '0');
+        sEl.innerText = String(seconds).padStart(2, '0');
+      };
+
+      updateTimer();
+      countdownInterval = setInterval(updateTimer, 1000);
+    }
+
+    // Lightbox Functionality
+    function openLightbox(index) {
+      currentLightboxIdx = index;
+      const lightbox = document.getElementById('lightbox');
+      const img = document.getElementById('lightbox-img');
+      const counter = document.getElementById('lightbox-counter');
+      const caption = document.getElementById('lightbox-caption');
+
+      img.src = weddingData.photos[currentLightboxIdx];
+      counter.innerText = `${currentLightboxIdx + 1} / ${weddingData.photos.length}`;
+      caption.innerText = `Kỷ niệm cưới ${weddingData.groomName} & ${weddingData.brideName} - Ảnh ${currentLightboxIdx + 1}`;
+
+      lightbox.classList.remove('hidden');
+    }
+
+    function closeLightbox() {
+      document.getElementById('lightbox').classList.add('hidden');
+    }
+
+    function prevLightboxImage() {
+      currentLightboxIdx = (currentLightboxIdx - 1 + weddingData.photos.length) % weddingData.photos.length;
+      openLightbox(currentLightboxIdx);
+    }
+
+    function nextLightboxImage() {
+      currentLightboxIdx = (currentLightboxIdx + 1) % weddingData.photos.length;
+      openLightbox(currentLightboxIdx);
+    }
+
+    // Form inputs handling
+    function updateField(field, value) {
+      weddingData[field] = value;
+    }
+
+    // Add Guest RSVP Wish
+    function submitRSVP(e) {
+      e.preventDefault();
+      const nameInput = document.getElementById('rsvp-name');
+      const wishInput = document.getElementById('rsvp-wish');
+      const statusSelect = document.getElementById('rsvp-status');
+
+      if (!nameInput.value.trim() || !wishInput.value.trim()) {
+        showToast('Vui lòng nhập tên và lời chúc của bạn', 'error');
+        return;
+      }
+
+      weddingData.wishes.unshift({
+        name: nameInput.value.trim(),
+        wish: wishInput.value.trim(),
+        status: statusSelect.value,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      });
+
+      nameInput.value = '';
+      wishInput.value = '';
+      showToast('Cảm ơn bạn đã gửi lời chúc mừng!');
+      renderApp();
+    }
+
+    // Render Full UI
+    function renderApp() {
+      const container = document.getElementById('app');
+
+      if (isViewMode) {
+        // GUEST VIEW MODE
+        container.innerHTML = `
+          <!-- Header Banner -->
+          <div class="relative bg-gradient-to-r from-rose-500 via-pink-500 to-amber-400 text-white py-16 px-6 text-center shadow-md overflow-hidden">
+            <div class="absolute inset-0 bg-black/10"></div>
+            <div class="relative z-10 max-w-2xl mx-auto">
+              <span class="text-xs uppercase tracking-widest bg-white/20 backdrop-blur-md px-3 py-1 rounded-full border border-white/30">Thiệp Mời Cưới Trực Tuyến</span>
+              <h1 class="font-serif-wedding text-5xl md:text-7xl my-4 text-white drop-shadow-md">
+                ${weddingData.groomName} <span class="text-rose-200">&amp;</span> ${weddingData.brideName}
+              </h1>
+              <p class="text-sm md:text-base font-light tracking-wide text-rose-50">
+                Trân trọng kính mời quý khách đến tham dự buổi tiệc chung vui cùng gia đình chúng tôi!
+              </p>
+            </div>
+          </div>
+
+          <!-- Main Guest Content -->
+          <div class="p-6 md:p-10 space-y-12 flex-1">
+            
+            <!-- Family Info Section -->
+            <section class="grid grid-cols-1 md:grid-cols-2 gap-6 bg-rose-50/50 p-6 rounded-2xl border border-rose-100 text-center">
+              <div class="space-y-2 p-4 bg-white rounded-xl shadow-sm border border-rose-100">
+                <i class="fas fa-mars text-2xl text-blue-500"></i>
+                <h3 class="text-lg font-bold text-slate-800">Nhà Trai</h3>
+                <p class="text-sm text-slate-600">${weddingData.groomFamily}</p>
+                <div class="text-xl font-bold text-rose-600 pt-2 font-serif-wedding">${weddingData.groomName}</div>
+              </div>
+
+              <div class="space-y-2 p-4 bg-white rounded-xl shadow-sm border border-rose-100">
+                <i class="fas fa-venus text-2xl text-pink-500"></i>
+                <h3 class="text-lg font-bold text-slate-800">Nhà Gái</h3>
+                <p class="text-sm text-slate-600">${weddingData.brideFamily}</p>
+                <div class="text-xl font-bold text-rose-600 pt-2 font-serif-wedding">${weddingData.brideName}</div>
+              </div>
+            </section>
+
+            <!-- Event & Countdown Section -->
+            <section class="bg-gradient-to-br from-slate-900 to-rose-950 text-white rounded-3xl p-8 shadow-xl text-center relative overflow-hidden">
+              <div class="relative z-10 max-w-xl mx-auto space-y-6">
+                <h2 class="text-2xl font-bold tracking-tight text-rose-300">THỜI GIAN & ĐỊA ĐIỂM</h2>
+                <div class="text-4xl md:text-5xl font-extrabold text-white">
+                  ${weddingData.weddingTime} <span class="text-rose-400 text-2xl">|</span> ${weddingData.weddingDate}
+                </div>
+
+                <div class="space-y-1 text-slate-200">
+                  <p class="font-semibold text-lg text-amber-200"><i class="fas fa-map-marker-alt text-rose-400 mr-2"></i>${weddingData.venueName}</p>
+                  <p class="text-sm opacity-90">${weddingData.venueAddress}</p>
+                </div>
+
+                <!-- Countdown Timer -->
+                <div class="pt-4">
+                  <p class="text-xs uppercase tracking-widest text-slate-400 mb-3">Đếm ngược ngày vui</p>
+                  <div class="grid grid-cols-4 gap-2 max-w-md mx-auto text-center">
+                    <div class="bg-white/10 backdrop-blur-md rounded-xl p-3 border border-white/10">
+                      <span id="cd-days" class="block text-2xl md:text-3xl font-bold text-rose-300">00</span>
+                      <span class="text-[10px] text-slate-300 uppercase">Ngày</span>
+                    </div>
+                    <div class="bg-white/10 backdrop-blur-md rounded-xl p-3 border border-white/10">
+                      <span id="cd-hours" class="block text-2xl md:text-3xl font-bold text-rose-300">00</span>
+                      <span class="text-[10px] text-slate-300 uppercase">Giờ</span>
+                    </div>
+                    <div class="bg-white/10 backdrop-blur-md rounded-xl p-3 border border-white/10">
+                      <span id="cd-mins" class="block text-2xl md:text-3xl font-bold text-rose-300">00</span>
+                      <span class="text-[10px] text-slate-300 uppercase">Phút</span>
+                    </div>
+                    <div class="bg-white/10 backdrop-blur-md rounded-xl p-3 border border-white/10">
+                      <span id="cd-secs" class="block text-2xl md:text-3xl font-bold text-rose-300">00</span>
+                      <span class="text-[10px] text-slate-300 uppercase">Giây</span>
+                    </div>
+                  </div>
+                </div>
+
+                ${weddingData.mapUrl ? `
+                  <div class="pt-2">
+                    <a href="${weddingData.mapUrl}" target="_blank" class="inline-flex items-center gap-2 bg-rose-600 hover:bg-rose-500 text-white px-6 py-3 rounded-full text-sm font-semibold transition-all shadow-lg hover:shadow-rose-600/50">
+                      <i class="fas fa-directions"></i> Xem Bản Đồ Chỉ Đường
+                    </a>
+                  </div>
+                ` : ''}
+              </div>
+            </section>
+
+            <!-- 10 Photo Album Gallery -->
+            <section class="space-y-4">
+              <div class="text-center">
+                <h2 class="text-2xl font-bold text-slate-800">Album Ảnh Cưới</h2>
+                <p class="text-xs text-slate-500 mt-1">Chạm vào ảnh bất kỳ để xem phóng to full màn hình</p>
+              </div>
+
+              <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+                ${weddingData.photos.map((src, i) => `
+                  <div onclick="openLightbox(${i})" class="group relative aspect-square bg-slate-200 rounded-xl overflow-hidden cursor-pointer shadow-sm hover:shadow-md transition-all">
+                    <img src="${src}" alt="Ảnh cưới ${i+1}" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" onerror="this.src='https://placehold.co/400x400/ffe4e6/be123c?text=Anh+Cuoi+${i+1}'">
+                    <div class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
+                      <i class="fas fa-search-plus text-xl"></i>
+                    </div>
+                    <span class="absolute bottom-1 right-1 bg-black/60 text-white text-[10px] px-1.5 py-0.5 rounded">#${i+1}</span>
+                  </div>
+                `).join('')}
+              </div>
+            </section>
+
+            <!-- Gift / QR Section -->
+            <section class="bg-slate-50 border border-slate-200 rounded-2xl p-6 text-center space-y-6">
+              <h2 class="text-2xl font-bold text-slate-800"><i class="fas fa-gift text-rose-500 mr-2"></i>Hộp Mừng Cưới</h2>
+              <p class="text-sm text-slate-600 max-w-md mx-auto">Sự hiện diện của quý vị là niềm hạnh phúc lớn nhất của chúng tôi. Nếu không thể tham dự, bạn có thể gửi quà mừng qua chuyển khoản bên dưới:</p>
+              
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl mx-auto">
+                <!-- Groom Bank -->
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col items-center">
+                  <span class="text-xs font-bold text-rose-600 bg-rose-50 px-2 py-1 rounded mb-3">Mừng Cưới Chú Rể</span>
+                  <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=STK:${weddingData.bankGroomNumber}-${weddingData.bankGroomBank}" class="w-32 h-32 rounded-lg border border-slate-200 mb-3" alt="QR Chú rể">
+                  <p class="font-bold text-slate-800 text-sm">${weddingData.bankGroomName}</p>
+                  <p class="text-xs text-slate-500">${weddingData.bankGroomBank}</p>
+                  <p class="text-xs font-mono font-bold text-rose-600 mt-1">${weddingData.bankGroomNumber}</p>
+                </div>
+
+                <!-- Bride Bank -->
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col items-center">
+                  <span class="text-xs font-bold text-pink-600 bg-pink-50 px-2 py-1 rounded mb-3">Mừng Cưới Cô Dâu</span>
+                  <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=STK:${weddingData.bankBrideNumber}-${weddingData.bankBrideBank}" class="w-32 h-32 rounded-lg border border-slate-200 mb-3" alt="QR Cô dâu">
+                  <p class="font-bold text-slate-800 text-sm">${weddingData.bankBrideName}</p>
+                  <p class="text-xs text-slate-500">${weddingData.bankBrideBank}</p>
+                  <p class="text-xs font-mono font-bold text-pink-600 mt-1">${weddingData.bankBrideNumber}</p>
+                </div>
+              </div>
+            </section>
+
+            <!-- RSVP Wish Section -->
+            <section class="bg-white border border-rose-100 rounded-2xl p-6 shadow-sm space-y-6">
+              <h2 class="text-2xl font-bold text-slate-800 text-center"><i class="fas fa-heart text-rose-500 mr-2"></i>Gửi Lời Chúc & Xác Nhận Tham Dự</h2>
+              
+              <form onsubmit="submitRSVP(event)" class="space-y-4 max-w-lg mx-auto">
+                <div>
+                  <label class="block text-xs font-semibold text-slate-600 mb-1">Họ & Tên Quý Khách</label>
+                  <input type="text" id="rsvp-name" required placeholder="Nhập tên của bạn..." class="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-rose-400 outline-none">
+                </div>
+
+                <div>
+                  <label class="block text-xs font-semibold text-slate-600 mb-1">Xác Nhận Tham Dự</label>
+                  <select id="rsvp-status" class="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-rose-400 outline-none">
+                    <option value="Sẽ tham dự">Sẽ chắc chắn đến tham dự</option>
+                    <option value="Có thể tham dự">Có thể tham dự</option>
+                    <option value="Rất tiếc vắng mặt">Rất tiếc không thể đến</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label class="block text-xs font-semibold text-slate-600 mb-1">Lời Chúc Dành Cho Cặp Đôi</label>
+                  <textarea id="rsvp-wish" rows="3" required placeholder="Nhập lời chúc tốt đẹp nhất..." class="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-rose-400 outline-none"></textarea>
+                </div>
+
+                <button type="submit" class="w-full bg-rose-600 hover:bg-rose-700 text-white py-3 rounded-lg text-sm font-semibold transition-all shadow-md">
+                  <i class="fas fa-paper-plane mr-1"></i> Gửi Lời Chúc Mừng
+                </button>
+              </form>
+
+              <!-- Wishes List -->
+              ${weddingData.wishes.length > 0 ? `
+                <div class="pt-6 border-t border-slate-100 space-y-3">
+                  <h3 class="text-sm font-bold text-slate-700">Lời chúc từ khách mời (${weddingData.wishes.length}):</h3>
+                  <div class="max-h-60 overflow-y-auto space-y-2 pr-2">
+                    ${weddingData.wishes.map(w => `
+                      <div class="bg-rose-50/50 p-3 rounded-lg border border-rose-100 text-xs space-y-1">
+                        <div class="flex justify-between items-center">
+                          <span class="font-bold text-slate-800">${w.name}</span>
+                          <span class="text-[10px] text-slate-400">${w.time} - <span class="text-rose-600 font-semibold">${w.status}</span></span>
+                        </div>
+                        <p class="text-slate-600 italic">"${w.wish}"</p>
+                      </div>
+                    `).join('')}
+                  </div>
+                </div>
+              ` : ''}
+            </section>
+
+          </div>
+
+          <!-- Footer -->
+          <footer class="bg-slate-900 text-slate-400 text-center py-6 text-xs border-t border-slate-800">
+            <p>© 2026 Thiệp Cưới Online. Thiết kế tinh tế & Tối ưu Link chia sẻ.</p>
+            <button onclick="window.location.hash=''; isViewMode=false; renderApp();" class="mt-2 text-rose-400 hover:underline">
+              <i class="fas fa-edit mr-1"></i> Chỉnh sửa thiệp mới
+            </button>
+          </footer>
+        `;
+        return;
+      }
+
+      // EDITOR MODE
+      container.innerHTML = `
+        <!-- Editor Header -->
+        <div class="bg-slate-900 text-white p-6 rounded-b-2xl shadow-md">
+          <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+            <div>
+              <h1 class="text-2xl font-bold flex items-center gap-2">
+                <i class="fas fa-heart text-rose-500"></i> Thiệp Cưới Online (Tải 10 Ảnh & Rút Gọn Link)
+              </h1>
+              <p class="text-xs text-slate-400 mt-1">Tối ưu nén dữ liệu & Tích hợp API rút gọn link siêu ngắn không lo lỗi URL dài!</p>
+            </div>
+            
+            <button onclick="isViewMode=true; startCountdown(); renderApp();" class="bg-rose-600 hover:bg-rose-500 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center gap-2 shadow-lg">
+              <i class="fas fa-eye"></i> Xem Trước Thiệp
+            </button>
+          </div>
+
+          <!-- Navigation Tabs -->
+          <div class="flex flex-wrap gap-2 mt-6 border-b border-slate-800 pb-2">
+            <button onclick="activeTab='info'; renderApp();" class="px-4 py-2 rounded-lg text-xs font-semibold transition-all ${activeTab === 'info' ? 'bg-rose-600 text-white' : 'text-slate-400 hover:bg-slate-800'}">
+              <i class="fas fa-info-circle mr-1"></i> Thông Tin Cô Dâu Chú Rể
+            </button>
+            <button onclick="activeTab='event'; renderApp();" class="px-4 py-2 rounded-lg text-xs font-semibold transition-all ${activeTab === 'event' ? 'bg-rose-600 text-white' : 'text-slate-400 hover:bg-slate-800'}">
+              <i class="fas fa-calendar-alt mr-1"></i> Lễ Cưới & Địa Điểm
+            </button>
+            <button onclick="activeTab='photos'; renderApp();" class="px-4 py-2 rounded-lg text-xs font-semibold transition-all ${activeTab === 'photos' ? 'bg-rose-600 text-white' : 'text-slate-400 hover:bg-slate-800'}">
+              <i class="fas fa-images mr-1"></i> Album 10 Ảnh Cưới
+            </button>
+            <button onclick="activeTab='bank'; renderApp();" class="px-4 py-2 rounded-lg text-xs font-semibold transition-all ${activeTab === 'bank' ? 'bg-rose-600 text-white' : 'text-slate-400 hover:bg-slate-800'}">
+              <i class="fas fa-qrcode mr-1"></i> Mừng Cưới QR
+            </button>
+            <button onclick="activeTab='share'; renderApp();" class="px-4 py-2 rounded-lg text-xs font-semibold transition-all ${activeTab === 'share' ? 'bg-rose-600 text-white' : 'text-slate-400 hover:bg-slate-800'}">
+              <i class="fas fa-link mr-1"></i> Rút Gọn & Tạo Link
+            </button>
+          </div>
+        </div>
+
+        <!-- Tab Body -->
+        <div class="p-6 md:p-8 flex-1">
+          ${renderTabContent()}
+        </div>
+      `;
+    }
+
+    // Tab Contents Switcher
+    function renderTabContent() {
+      if (activeTab === 'info') {
+        return `
+          <div class="space-y-6 max-w-2xl mx-auto">
+            <h2 class="text-lg font-bold text-slate-800 border-b pb-2">Thông Tin Chú Rể & Cô Dâu</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <!-- Groom -->
+              <div class="bg-rose-50/40 p-4 rounded-xl border border-rose-100 space-y-3">
+                <h3 class="font-bold text-rose-700 text-sm">Chú Rể</h3>
+                <div>
+                  <label class="block text-xs font-medium text-slate-600 mb-1">Tên Chú Rể</label>
+                  <input type="text" value="${weddingData.groomName}" onchange="updateField('groomName', this.value)" class="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-rose-400">
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-slate-600 mb-1">Thông tin nhà trai (Cha/Mẹ)</label>
+                  <input type="text" value="${weddingData.groomFamily}" onchange="updateField('groomFamily', this.value)" class="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-rose-400">
+                </div>
+              </div>
+
+              <!-- Bride -->
+              <div class="bg-pink-50/40 p-4 rounded-xl border border-pink-100 space-y-3">
+                <h3 class="font-bold text-pink-700 text-sm">Cô Dâu</h3>
+                <div>
+                  <label class="block text-xs font-medium text-slate-600 mb-1">Tên Cô Dâu</label>
+                  <input type="text" value="${weddingData.brideName}" onchange="updateField('brideName', this.value)" class="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-rose-400">
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-slate-600 mb-1">Thông tin nhà gái (Cha/Mẹ)</label>
+                  <input type="text" value="${weddingData.brideFamily}" onchange="updateField('brideFamily', this.value)" class="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-rose-400">
+                </div>
+              </div>
+            </div>
+
+            <div class="flex justify-end pt-4">
+              <button onclick="activeTab='event'; renderApp();" class="bg-rose-600 text-white px-6 py-2.5 rounded-lg text-sm font-semibold hover:bg-rose-500">
+                Tiếp tục: Lễ cưới <i class="fas fa-arrow-right ml-1"></i>
+              </button>
+            </div>
+          </div>
+        `;
+      }
+
+      if (activeTab === 'event') {
+        return `
+          <div class="space-y-6 max-w-2xl mx-auto">
+            <h2 class="text-lg font-bold text-slate-800 border-b pb-2">Thời Gian & Địa Điểm Tiệc Cưới</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-medium text-slate-600 mb-1">Ngày Tổ Chức</label>
+                <input type="date" value="${weddingData.weddingDate}" onchange="updateField('weddingDate', this.value)" class="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-rose-400">
+              </div>
+
+              <div>
+                <label class="block text-xs font-medium text-slate-600 mb-1">Giờ Giấc (Ví dụ: 11:00)</label>
+                <input type="text" value="${weddingData.weddingTime}" onchange="updateField('weddingTime', this.value)" class="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-rose-400">
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">Tên TTTM / Nhà Hàng Tiệc Cưới</label>
+              <input type="text" value="${weddingData.venueName}" onchange="updateField('venueName', this.value)" class="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-rose-400">
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">Địa Chỉ Chi Tiết</label>
+              <input type="text" value="${weddingData.venueAddress}" onchange="updateField('venueAddress', this.value)" class="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-rose-400">
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-slate-600 mb-1">Link Google Maps (Nếu có)</label>
+              <input type="url" value="${weddingData.mapUrl}" onchange="updateField('mapUrl', this.value)" placeholder="https://maps.google.com/..." class="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-rose-400">
+            </div>
+
+            <div class="flex justify-end pt-4">
+              <button onclick="activeTab='photos'; renderApp();" class="bg-rose-600 text-white px-6 py-2.5 rounded-lg text-sm font-semibold hover:bg-rose-500">
+                Tiếp tục: 10 Ảnh Cưới <i class="fas fa-arrow-right ml-1"></i>
+              </button>
+            </div>
+          </div>
+        `;
+      }
+
+      if (activeTab === 'photos') {
+        return `
+          <div class="space-y-6 max-w-3xl mx-auto">
+            <div class="flex justify-between items-center border-b pb-2">
+              <div>
+                <h2 class="text-lg font-bold text-slate-800">Quản Lý 10 Ảnh Album Cưới</h2>
+                <p class="text-xs text-slate-500">Hệ thống sẽ **tự động nén ảnh thông minh** để dung lượng cực nhẹ!</p>
+              </div>
+            </div>
+
+            <!-- Host Tips Banner -->
+            <div class="bg-amber-50 border border-amber-200 p-3 rounded-xl text-xs text-amber-800 flex items-start gap-2">
+              <i class="fas fa-lightbulb text-amber-600 mt-0.5 text-base"></i>
+              <div>
+                <strong>Mẹo giúp Link đạt độ siêu ngắn 100%:</strong>
+                Bạn có thể paste trực tiếp <b>Link ảnh online</b> (Imgur, PostImages, Facebook, Unsplash...) hoặc bấm <b>Tải ảnh lên</b> để nén trực tiếp vào thiệp.
+              </div>
+            </div>
+
+            <!-- 10 Photo Inputs Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              ${weddingData.photos.map((photo, i) => `
+                <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 flex gap-3 items-center">
+                  <div class="w-20 h-20 bg-slate-200 rounded-lg overflow-hidden flex-shrink-0 relative group">
+                    <img src="${photo}" alt="Ảnh ${i+1}" class="w-full h-full object-cover" onerror="this.src='https://placehold.co/200x200/ffe4e6/be123c?text=Anh+${i+1}'">
+                    <span class="absolute top-1 left-1 bg-black/60 text-white text-[10px] px-1 rounded">#${i+1}</span>
+                  </div>
+
+                  <div class="flex-1 space-y-2 text-xs">
+                    <div>
+                      <label class="block text-[11px] font-semibold text-slate-600">Dán URL ảnh hoặc Chọn file từ máy</label>
+                      <input type="text" value="${photo.startsWith('data:') ? '[File ảnh đã nén]' : photo}" onchange="updatePhotoUrl(${i}, this.value)" class="w-full px-2 py-1 border rounded text-xs outline-none focus:ring-1 focus:ring-rose-400">
+                    </div>
+                    
+                    <div>
+                      <input type="file" accept="image/*" id="photo-input-${i}" onchange="handlePhotoUpload(event, ${i})" class="hidden">
+                      <button onclick="document.getElementById('photo-input-${i}').click()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-1 rounded text-xs transition-all w-full flex items-center justify-center gap-1">
+                        <i class="fas fa-upload text-slate-500"></i> Tải & Nén Ảnh Từ Máy
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+
+            <div class="flex justify-end pt-4">
+              <button onclick="activeTab='bank'; renderApp();" class="bg-rose-600 text-white px-6 py-2.5 rounded-lg text-sm font-semibold hover:bg-rose-500">
+                Tiếp tục: Mừng cưới <i class="fas fa-arrow-right ml-1"></i>
+              </button>
+            </div>
+          </div>
+        `;
+      }
+
+      if (activeTab === 'bank') {
+        return `
+          <div class="space-y-6 max-w-2xl mx-auto">
+            <h2 class="text-lg font-bold text-slate-800 border-b pb-2">Thông Tin Tài Khoản Mừng Cưới (Tự động tạo mã QR)</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <!-- Groom Bank -->
+              <div class="bg-rose-50/30 p-4 rounded-xl border border-rose-100 space-y-3">
+                <h3 class="font-bold text-rose-700 text-sm">Tài Khoản Chú Rể</h3>
+                <div>
+                  <label class="block text-xs font-medium text-slate-600 mb-1">Tên Tài Khoản</label>
+                  <input type="text" value="${weddingData.bankGroomName}" onchange="updateField('bankGroomName', this.value)" class="w-full px-3 py-2 border rounded-lg text-sm outline-none">
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-slate-600 mb-1">Tên Ngân Hàng</label>
+                  <input type="text" value="${weddingData.bankGroomBank}" onchange="updateField('bankGroomBank', this.value)" class="w-full px-3 py-2 border rounded-lg text-sm outline-none">
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-slate-600 mb-1">Số Tài Khoản</label>
+                  <input type="text" value="${weddingData.bankGroomNumber}" onchange="updateField('bankGroomNumber', this.value)" class="w-full px-3 py-2 border rounded-lg text-sm outline-none">
+                </div>
+              </div>
+
+              <!-- Bride Bank -->
+              <div class="bg-pink-50/30 p-4 rounded-xl border border-pink-100 space-y-3">
+                <h3 class="font-bold text-pink-700 text-sm">Tài Khoản Cô Dâu</h3>
+                <div>
+                  <label class="block text-xs font-medium text-slate-600 mb-1">Tên Tài Khoản</label>
+                  <input type="text" value="${weddingData.bankBrideName}" onchange="updateField('bankBrideName', this.value)" class="w-full px-3 py-2 border rounded-lg text-sm outline-none">
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-slate-600 mb-1">Tên Ngân Hàng</label>
+                  <input type="text" value="${weddingData.bankBrideBank}" onchange="updateField('bankBrideBank', this.value)" class="w-full px-3 py-2 border rounded-lg text-sm outline-none">
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-slate-600 mb-1">Số Tài Khoản</label>
+                  <input type="text" value="${weddingData.bankBrideNumber}" onchange="updateField('bankBrideNumber', this.value)" class="w-full px-3 py-2 border rounded-lg text-sm outline-none">
+                </div>
+              </div>
+            </div>
+
+            <div class="flex justify-end pt-4">
+              <button onclick="activeTab='share'; renderApp();" class="bg-rose-600 text-white px-6 py-2.5 rounded-lg text-sm font-semibold hover:bg-rose-500">
+                Tiếp tục: Tạo Link Mời Khách <i class="fas fa-arrow-right ml-1"></i>
+              </button>
+            </div>
+          </div>
+        `;
+      }
+
+      if (activeTab === 'share') {
+        const compactHash = generateCompactPayload();
+        const fullLocalUrl = `${window.location.origin}${window.location.pathname}#${compactHash}`;
+
+        return `
+          <div class="space-y-6 max-w-2xl mx-auto text-center">
+            <div class="space-y-2">
+              <div class="w-16 h-16 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center text-2xl mx-auto">
+                <i class="fas fa-magic"></i>
+              </div>
+              <h2 class="text-xl font-bold text-slate-800">Tạo Link Thiệp Mời Cưới Siêu Ngắn</h2>
+              <p class="text-xs text-slate-500 max-w-md mx-auto">
+                Dữ liệu thiệp của bạn đã được tối ưu nén LZ-String. Bấm nút dưới đây để tự động gọi API TinyURL biến thành link siêu ngắn!
+              </p>
+            </div>
+
+            <!-- Action Trigger -->
+            <div class="pt-2">
+              <button onclick="createShortUrl()" ${isGeneratingShortUrl ? 'disabled' : ''} class="bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 text-white px-8 py-3.5 rounded-xl font-bold text-sm shadow-xl hover:shadow-rose-500/30 transition-all flex items-center gap-2 mx-auto disabled:opacity-50">
+                ${isGeneratingShortUrl ? `<i class="fas fa-spinner fa-spin"></i> Đang tạo link ngắn...` : `<i class="fas fa-bolt"></i> TẠO LINK MỜI KHÁCH SIÊU NGẮN`}
+              </button>
+            </div>
+
+            <!-- Generated Short Result Box -->
+            ${shortUrlResult ? `
+              <div class="bg-emerald-50 border border-emerald-200 p-5 rounded-2xl space-y-3 text-left animate-fade-in">
+                <div class="flex justify-between items-center">
+                  <span class="text-xs font-bold text-emerald-800 uppercase tracking-wide"><i class="fas fa-check-circle text-emerald-600 mr-1"></i> Link Siêu Ngắn Đã Sẵn Sàng:</span>
+                  <span class="text-[10px] bg-emerald-200 text-emerald-900 px-2 py-0.5 rounded font-semibold">An toàn &amp; Siêu gọn</span>
+                </div>
+                
+                <div class="flex gap-2">
+                  <input type="text" readonly value="${shortUrlResult}" class="flex-1 px-3 py-2 bg-white border border-emerald-300 rounded-lg text-sm font-mono text-emerald-900 outline-none">
+                  <button onclick="copyToClipboard('${shortUrlResult}')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1">
+                    <i class="fas fa-copy"></i> Sao Chép
+                  </button>
+                </div>
+
+                <div class="flex items-center justify-between text-xs text-slate-500 pt-1">
+                  <a href="${shortUrlResult}" target="_blank" class="text-rose-600 hover:underline"><i class="fas fa-external-link-alt"></i> Thử mở link ngay</a>
+                  <span>Có thể gửi trực tiếp qua Zalo, Messenger, SMS...</span>
+                </div>
+              </div>
+            ` : ''}
+
+            <!-- Fallback Direct URL Option -->
+            <div class="border-t border-slate-200 pt-6 text-left space-y-3">
+              <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider"><i class="fas fa-shield-alt text-slate-400 mr-1"></i> Link Dự Phòng Gốc (Nén LZ-String Direct)</h3>
+              <p class="text-xs text-slate-500">Nếu thiết bị của bạn không kết nối được dịch vụ TinyURL, bạn vẫn có thể dùng trực tiếp link dưới đây:</p>
+              
+              <div class="flex gap-2">
+                <input type="text" readonly value="${fullLocalUrl}" class="flex-1 px-3 py-2 bg-slate-100 border border-slate-300 rounded-lg text-xs font-mono text-slate-600 truncate outline-none">
+                <button onclick="copyToClipboard('${fullLocalUrl}')" class="bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded-lg text-xs font-semibold transition-all">
+                  <i class="fas fa-copy"></i> Sao chép link gốc
+                </button>
+              </div>
+            </div>
+
+          </div>
+        `;
+      }
+    }
+  </script>
+</body>
+</html>
